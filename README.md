@@ -1,2 +1,3 @@
-# go-humanize-time
-Convert timespans to strings for human consumption
+# go-humanreltime
+Convert timespans to strings for human consumption.
+
