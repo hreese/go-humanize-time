@@ -2,6 +2,7 @@ package humanreltime
 
 import (
 	"fmt"
+	_ "log"
 	"strings"
 	"time"
 )
@@ -19,6 +20,8 @@ const (
 
 var Resolutions = []Resolution{Years, Weeks, Days, Hours, Minutes, Seconds}
 
+const MAXCOMPONENTS = 3
+
 const (
 	secYear   = 60 * 60 * 24 * 365
 	secWeek   = 60 * 60 * 24 * 7
@@ -27,10 +30,9 @@ const (
 	secMinute = 60
 )
 
-type RangeName struct {
-	MoreThan time.Duration
-	LessThan time.Duration
-	Name     string
+type Prefix struct {
+	Negative string
+	Positive string
 }
 
 type Suffix struct {
@@ -44,98 +46,95 @@ type Delimiter struct {
 }
 
 type Language struct {
-	Name       string
-	LangCode   string
-	Now        string
-	FixedNames map[Resolution][]RangeName
-	Suffix     map[Resolution]Suffix
-	Delimiter  Delimiter
+	Name      string
+	LangCode  string
+	Now       string
+	Suffix    map[Resolution]Suffix
+	Prefix    Prefix
+	Delimiter Delimiter
 }
 
 func (l *Language) SuffixedNumber(number int64, res Resolution) string {
-	if number == 1 || number == -1 {
+	switch {
+	case number == 1 || number == -1:
 		return fmt.Sprintf("%d %s", number, l.Suffix[res].Singular)
-	} else {
+	case number == 0:
+		return ""
+	default:
 		return fmt.Sprintf("%d %s", number, l.Suffix[res].Plural)
 	}
 }
 
-func (l *Language) Duration(timestamp time.Time, reference time.Time, maxRes Resolution, minRes Resolution) string {
+func (l *Language) Duration(timestamp time.Time, reference time.Time, maxRes Resolution) string {
 	var years, weeks, days, hours, minutes, seconds int64
-    var allComponents = []*int64{&years, &weeks, &days, &hours, &minutes, &seconds}
+	var allComponents = []*int64{&years, &weeks, &days, &hours, &minutes, &seconds}
 	ref := reference.Unix()
 	ts := timestamp.Unix()
 	rest := ts - ref
-	// swap resolution vars (failsafe)
-	if maxRes < minRes {
-		minRes, maxRes = maxRes, minRes
-	}
+	//log.Println(rest)
 	// now
 	if rest == 0 {
 		return l.Now
 	}
-	// check same-resolution cases
-	if maxRes == minRes {
-		_, hasNames := l.FixedNames[maxRes]
-		if hasNames {
-			for _, test := range l.FixedNames[maxRes] {
-				if rest >= int64(test.MoreThan) && rest < int64(test.LessThan) {
-					return test.Name
-				}
-			}
-		}
-	}
 	// compute correct biggest unit
 	switch maxRes {
 	case Years:
-		years = rest / secYear
+		years = intAbs(rest / secYear)
 		rest = rest % secYear
+		//log.Println("[Y]", years, rest)
 		fallthrough
 	case Weeks:
-		weeks = rest / secWeek
+		weeks = intAbs(rest / secWeek)
 		rest = rest % secWeek
+		//log.Println("[W]", weeks, rest)
 		fallthrough
 	case Days:
-		days = rest / secDay
-		minutes = rest / secDay
+		days = intAbs(rest / secDay)
+		rest = rest % secDay
+		//log.Println("[D]", days, rest)
 		fallthrough
 	case Hours:
-		hours = rest / secHour
-		minutes = rest / secHour
+		hours = intAbs(rest / secHour)
+		rest = rest % secHour
 		fallthrough
 	case Minutes:
-		hours = rest / secMinute
-		minutes = rest / secMinute
+		minutes = intAbs(rest / secMinute)
+		rest = rest % secMinute
 		fallthrough
 	case Seconds:
-		seconds = rest
+		seconds = intAbs(rest)
 	}
-	// build components
+	//log.Println(years, weeks, days, hours, minutes, seconds)
+	// remove zeros, generate strings
 	components := make([]string, 0)
-    for idx, timepart := range allComponents[minRes:maxRes] {
-        components = append(components, l.SuffixedNumber(*timepart, minRes+Resolution(idx)))
-    }
-    /*
-	switch minRes {
-	case Years:
-		components = append(components, l.SuffixedNumber(years, minRes))
-		fallthrough
-	case Weeks:
-		components = append(components, l.SuffixedNumber(weeks, minRes))
-		fallthrough
-	case Days:
-		components = append(components, l.SuffixedNumber(days, minRes))
-		fallthrough
-	case Hours:
-		components = append(components, l.SuffixedNumber(hours, minRes))
-		fallthrough
-	case Minutes:
-		components = append(components, l.SuffixedNumber(minutes, minRes))
-		fallthrough
-	case Seconds:
-		components = append(components, l.SuffixedNumber(seconds, minRes))
+	for idx, res := range Resolutions {
+		if *allComponents[idx] != 0 {
+			components = append(components, l.SuffixedNumber(*allComponents[idx], res))
+		}
 	}
-    */
-	// TODO: implement different final delimiter
-	return strings.Join(components, l.Delimiter.Rest)
+	// truncate resolution
+	if len(components) > MAXCOMPONENTS {
+		components = components[:MAXCOMPONENTS]
+	}
+	// handle special final delimiter
+	if len(components) > 1 {
+		front := components[:len(components)-2]
+		tail := strings.Join(components[len(components)-2:len(components)], l.Delimiter.Last)
+		components = append(front, tail)
+	}
+	timeString := strings.Join(components, l.Delimiter.Rest)
+	// past or future?
+	if ts-ref < 0 {
+		return l.Prefix.Negative + timeString
+	} else {
+		return l.Prefix.Positive + timeString
+	}
+}
+
+func intAbs(i int64) int64 {
+	if i < 0 {
+		return -1 * i
+	} else {
+		return i
+	}
 }
