@@ -40,27 +40,27 @@ var German = Language{
 			RangeName{
 				MoreThan: -1 * time.Hour * 24 * 7 * 2,
 				LessThan: -1 * time.Hour * 24 * 7,
-				Name:     "vorletztes Woche",
+				Name:     "vorletzte Woche",
 			},
 			RangeName{
 				MoreThan: -1 * time.Hour * 24 * 7,
 				LessThan: 0,
-				Name:     "letztes Woche",
+				Name:     "letzte Woche",
 			},
 			RangeName{
 				MoreThan: 0,
 				LessThan: time.Hour * 24 * 7,
-				Name:     "dieses Woche",
+				Name:     "diese Woche",
 			},
 			RangeName{
 				MoreThan: time.Hour * 24 * 7,
 				LessThan: time.Hour * 24 * 7 * 2,
-				Name:     "nächstes Woche",
+				Name:     "nächste Woche",
 			},
 			RangeName{
 				MoreThan: time.Hour * 24 * 7 * 2,
 				LessThan: time.Hour * 24 * 7 * 3,
-				Name:     "übernächstes Woche",
+				Name:     "übernächste Woche",
 			},
 		},
 		Days: []RangeName{
