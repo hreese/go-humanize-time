@@ -11,6 +11,7 @@ type Resolution uint8
 
 const (
 	Years Resolution = iota
+	Months
 	Weeks
 	Days
 	Hours
@@ -18,12 +19,11 @@ const (
 	Seconds
 )
 
-var Resolutions = []Resolution{Years, Weeks, Days, Hours, Minutes, Seconds}
-
-const MAXCOMPONENTS = 3
+var Resolutions = []Resolution{Years, Months, Weeks, Days, Hours, Minutes, Seconds}
 
 const (
 	secYear   = 60 * 60 * 24 * 365
+	secMonth  = 60 * 60 * 24 * 30 // our months are 30 days long
 	secWeek   = 60 * 60 * 24 * 7
 	secDay    = 60 * 60 * 24
 	secHour   = 60 * 60
@@ -65,13 +65,16 @@ func (l *Language) SuffixedNumber(number int64, res Resolution) string {
 	}
 }
 
-func (l *Language) Duration(timestamp time.Time, reference time.Time, maxRes Resolution) string {
-	var years, weeks, days, hours, minutes, seconds int64
-	var allComponents = []*int64{&years, &weeks, &days, &hours, &minutes, &seconds}
+func (l *Language) Duration(timestamp time.Time, reference time.Time, maxRes Resolution, numComponents int) string {
+	var years, months, weeks, days, hours, minutes, seconds int64
+	var allComponents = []*int64{&years, &months, &weeks, &days, &hours, &minutes, &seconds}
 	ref := reference.Unix()
 	ts := timestamp.Unix()
 	rest := ts - ref
-	//log.Println(rest)
+	// check numComponents
+	if numComponents < 1 {
+		numComponents = 2
+	}
 	// now
 	if rest == 0 {
 		return l.Now
@@ -81,17 +84,18 @@ func (l *Language) Duration(timestamp time.Time, reference time.Time, maxRes Res
 	case Years:
 		years = intAbs(rest / secYear)
 		rest = rest % secYear
-		//log.Println("[Y]", years, rest)
+		fallthrough
+	case Months:
+		months = intAbs(rest / secMonth)
+		rest = rest % secMonth
 		fallthrough
 	case Weeks:
 		weeks = intAbs(rest / secWeek)
 		rest = rest % secWeek
-		//log.Println("[W]", weeks, rest)
 		fallthrough
 	case Days:
 		days = intAbs(rest / secDay)
 		rest = rest % secDay
-		//log.Println("[D]", days, rest)
 		fallthrough
 	case Hours:
 		hours = intAbs(rest / secHour)
@@ -104,7 +108,7 @@ func (l *Language) Duration(timestamp time.Time, reference time.Time, maxRes Res
 	case Seconds:
 		seconds = intAbs(rest)
 	}
-	//log.Println(years, weeks, days, hours, minutes, seconds)
+	//log.Printf("[%d] %d %d %d %d %d %d %d ", maxRes, years, months, weeks, days, hours, minutes, seconds)
 	// remove zeros, generate strings
 	components := make([]string, 0)
 	for idx, res := range Resolutions {
@@ -113,8 +117,8 @@ func (l *Language) Duration(timestamp time.Time, reference time.Time, maxRes Res
 		}
 	}
 	// truncate resolution
-	if len(components) > MAXCOMPONENTS {
-		components = components[:MAXCOMPONENTS]
+	if len(components) > numComponents {
+		components = components[:numComponents]
 	}
 	// handle special final delimiter
 	if len(components) > 1 {

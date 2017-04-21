@@ -13,6 +13,10 @@ var German = Language{
 			Singular: "Jahr",
 			Plural:   "Jahren",
 		},
+		Months: Suffix{
+			Singular: "Monat",
+			Plural:   "Monaten",
+		},
 		Weeks: Suffix{
 			Singular: "Woche",
 			Plural:   "Wochen",
